@@ -299,7 +299,7 @@ Legend:
 ### Day 1 - Architecture, Database and Repository
 
 - [x] Initialize the application repository.
-- [ ] Complete architecture and database design.
+- [x] Complete architecture and database design.
 - [ ] Configure the relational database.
 - [ ] Seed production recipes.
 - [ ] Deploy the application skeleton to the cloud.
