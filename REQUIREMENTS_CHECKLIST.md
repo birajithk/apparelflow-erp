@@ -45,7 +45,7 @@ Legend:
 - [ ] Display component traffic-light statuses.
 - [ ] Allow valid batch approval.
 - [ ] Allow batch rejection with a mandatory reason.
-- [ ] Prevent cutting order creation.
+- [x] Prevent cutting order creation.
 - [ ] Prevent recipe editing.
 - [ ] Prevent access to the Sewing Queue.
 
@@ -61,7 +61,7 @@ Legend:
 ## 3. Manufacturing State Machine (PDF Section 6)
 
 - [ ] Represent cutting work in progress.
-- [ ] Support transition to PENDING_VERIFICATION.
+- [x] Support transition to PENDING_VERIFICATION.
 - [ ] Support component-by-component count QC.
 - [ ] Support REJECTED with a mandatory reason.
 - [ ] Return rejected batches for re-cutting.
@@ -111,15 +111,15 @@ Legend:
 ## 5. Cutting Order Engine (PDF Section 7.2)
 
 - [ ] Provide a cutting order creation interface.
-- [ ] Require a valid recipe ID.
-- [ ] Require a positive integer target batch quantity.
-- [ ] Require a fabric roll ID.
-- [ ] Require actual fabric usage in yards.
-- [ ] Calculate expected counts for every recipe component.
-- [ ] Apply target quantity * pieces per garment.
-- [ ] Persist the order and expected component counts.
-- [ ] Transition submitted orders to PENDING_VERIFICATION.
-- [ ] Attribute order creation to the authenticated Supervisor.
+- [x] Require a valid recipe ID.
+- [x] Require a positive integer target batch quantity.
+- [x] Require a fabric roll ID.
+- [x] Require actual fabric usage in yards.
+- [x] Calculate expected counts for every recipe component.
+- [x] Apply target quantity * pieces per garment.
+- [x] Persist the order and expected component counts.
+- [x] Transition submitted orders to PENDING_VERIFICATION.
+- [x] Attribute order creation to the authenticated Supervisor.
 
 ## 6. Verification Terminal (PDF Sections 7.3-7.4)
 
@@ -369,7 +369,7 @@ does not completely specify.
 - [ ] Use three real demo accounts with server-side sessions.
 - [ ] Treat count QC as part of the verification workflow.
 - [ ] Allow integer component counts, including zero.
-- [ ] Require positive integer target batch quantities.
+- [x] Require positive integer target batch quantities.
 - [ ] Allow decimal measurements for fabric yards.
 - [ ] Warn and audit when fabric wastage exceeds its cap.
 - [ ] Do not block approval solely for excess fabric wastage.
