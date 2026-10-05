@@ -464,10 +464,10 @@ export function CreateOrderForm({
               <div
                 className={`mt-4 rounded-xl border p-4 ${
                   exceedsWastageCap
-                    ? "border-amber-300 bg-amber-50"
+                    ? "border-red-300 bg-red-50"
                     : fabricVariancePct < 0
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-slate-300 bg-slate-50"
+                      ? "border-yellow-300 bg-yellow-50"
+                      : "border-emerald-300 bg-emerald-50"
                 }`}
               >
                 <p className="font-semibold text-slate-950">
@@ -499,19 +499,19 @@ export function CreateOrderForm({
                 </dl>
 
                 {exceedsWastageCap ? (
-                  <p className="mt-3 text-sm font-semibold text-amber-950">
+                  <p className="mt-3 text-sm font-semibold text-red-950">
                     Warning: fabric usage exceeds this recipe&apos;s{" "}
                     {selectedRecipe.wastageCap}% wastage cap.
                   </p>
                 ) : fabricVariancePct < 0 ? (
-                  <p className="mt-3 text-sm text-emerald-950">
+                  <p className="mt-3 text-sm font-semibold text-yellow-950">
                     Actual usage is{" "}
                     {Math.abs(fabricDifference).toFixed(2)} yards below
                     the recipe standard. Component verification still
                     determines whether the batch may pass.
                   </p>
                 ) : (
-                  <p className="mt-3 text-sm text-slate-700">
+                  <p className="mt-3 text-sm font-semibold text-emerald-950">
                     Fabric usage is within the configured wastage cap.
                   </p>
                 )}
