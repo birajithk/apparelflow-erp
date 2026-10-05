@@ -21,12 +21,12 @@ Legend:
 
 ## 2. Authentication and RBAC (PDF Section 5)
 
-- [ ] Implement real user authentication.
-- [ ] Store passwords securely as password hashes.
-- [ ] Implement secure server-side sessions.
+- [x] Implement real user authentication.
+- [x] Store passwords securely as password hashes.
+- [x] Implement secure server-side sessions.
 - [ ] Implement authentication-aware navigation.
 - [ ] Provide a visible role switcher/demo credential panel.
-- [ ] Seed demo credentials for all three roles.
+- [x] Seed demo credentials for all three roles.
 - [ ] Enforce permissions on the backend.
 
 ### Cutting Supervisor - cutting_supervisor
