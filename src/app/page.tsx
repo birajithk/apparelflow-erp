@@ -5,6 +5,8 @@ import { CreateOrderForm } from "@/components/cutting/create-order-form";
 import { getCurrentUser } from "@/server/auth/session";
 import type { UserRole } from "@/server/auth/types";
 import { getProductionRecipes } from "@/server/recipes/get-production-recipes";
+import { VerifierTerminal } from "@/components/verification/verifier-terminal";
+import { getPendingVerificationOrders } from "@/server/verification/get-pending-orders";
 
 const workspaceDetails: Record<
   UserRole,
@@ -42,6 +44,11 @@ export default async function Home() {
   const recipes =
     user.role === "cutting_supervisor"
       ? await getProductionRecipes()
+      : [];
+
+  const pendingVerificationOrders =
+    user.role === "cutting_verifier"
+      ? await getPendingVerificationOrders()
       : [];
 
   return (
@@ -106,15 +113,19 @@ export default async function Home() {
 
           {user.role === "cutting_supervisor" ? (
             <CreateOrderForm recipes={recipes} />
+          ) : user.role === "cutting_verifier" ? (
+            <VerifierTerminal
+              initialOrders={pendingVerificationOrders}
+            />
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6">
               <p className="font-semibold text-slate-900">
-                Role-specific workspace coming next.
+                Sewing workspace implementation is coming next.
               </p>
 
               <p className="mt-2 text-sm leading-6 text-slate-700">
-                This persona cannot access Cutting Supervisor
-                order creation controls.
+                The Sewing Supervisor cannot access Cutting
+                Supervisor or Cutting Verifier controls.
               </p>
             </div>
           )}
