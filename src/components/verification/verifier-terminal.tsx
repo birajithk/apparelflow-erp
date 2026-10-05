@@ -74,6 +74,18 @@ export function VerifierTerminal({
     error: null,
   });
 
+  const [decisionOrderId, setDecisionOrderId] =
+    useState<string | null>(null);
+
+  const [rejectionOrderId, setRejectionOrderId] =
+    useState<string | null>(null);
+
+  const [rejectionNotes, setRejectionNotes] =
+    useState<Record<string, string>>({});
+
+  const [decisionError, setDecisionError] =
+    useState<string | null>(null);
+
   function updateLocalItem(
     itemId: string,
     updates: Partial<PendingVerificationComponent>,
@@ -90,6 +102,7 @@ export function VerifierTerminal({
     );
   }
 
+
   async function saveCount(
     item: PendingVerificationComponent,
     rawValue: string,
@@ -98,6 +111,9 @@ export function VerifierTerminal({
       itemId: item.id,
       error: null,
     });
+
+
+
 
     let actualQty: number | null = null;
 
@@ -193,6 +209,83 @@ export function VerifierTerminal({
     }
   }
 
+  async function submitDecision(
+    orderId: string,
+    decision: "APPROVED" | "REJECTED",
+  ) {
+    const rejectionNote =
+      rejectionNotes[orderId]?.trim() ?? "";
+
+    if (
+      decision === "REJECTED" &&
+      rejectionNote.length === 0
+    ) {
+      setDecisionError(
+        "Enter a rejection reason before rejecting this batch.",
+      );
+      return;
+    }
+
+    setDecisionOrderId(orderId);
+    setDecisionError(null);
+
+    try {
+      const response = await fetch(
+        "/api/verification/decision",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId,
+            decision,
+            ...(decision === "REJECTED"
+              ? { rejectionNote }
+              : {}),
+          }),
+        },
+      );
+
+      const data = (await response.json()) as {
+        verification?: {
+          orderId: string;
+          status: string;
+        };
+        error?: string;
+      };
+
+      if (!response.ok || !data.verification) {
+        setDecisionError(
+          data.error ??
+            "Unable to process verification decision.",
+        );
+        return;
+      }
+
+      setOrders((currentOrders) =>
+        currentOrders.filter(
+          (order) => order.id !== orderId,
+        ),
+      );
+
+      setRejectionOrderId(null);
+
+      setRejectionNotes((current) => {
+        const next = { ...current };
+        delete next[orderId];
+        return next;
+      });
+    } catch {
+      setDecisionError(
+        "Unable to connect to the server.",
+      );
+    } finally {
+      setDecisionOrderId(null);
+    }
+  }
+
   if (orders.length === 0) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -223,6 +316,15 @@ export function VerifierTerminal({
         </div>
       ) : null}
 
+      {decisionError ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-950"
+        >
+          {decisionError}
+        </div>
+      ) : null}
+
       {orders.map((order) => {
         const countedComponents = order.components.filter(
           (component) => component.actualQty !== null,
@@ -238,6 +340,15 @@ export function VerifierTerminal({
 
         const allCounted =
           countedComponents === order.components.length;
+
+        const canApprove =
+          allCounted && redCount === 0;
+
+        const isProcessingDecision =
+          decisionOrderId === order.id;
+
+        const isRejecting =
+          rejectionOrderId === order.id;
 
         return (
           <section
@@ -459,8 +570,124 @@ export function VerifierTerminal({
                   <p className="text-sm font-semibold text-emerald-950">
                     Component counts satisfy the approval gate.
                   </p>
+
                 )}
               </div>
+            </div>
+
+            <div className="mt-5 border-t border-slate-200 pt-5">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  disabled={
+                    !canApprove ||
+                    isProcessingDecision
+                  }
+                  onClick={() =>
+                    submitDecision(
+                      order.id,
+                      "APPROVED",
+                    )
+                  }
+                  className="rounded-lg bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isProcessingDecision
+                    ? "Processing..."
+                    : "Approve Batch"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isProcessingDecision}
+                  onClick={() => {
+                    setDecisionError(null);
+
+                    setRejectionOrderId(
+                      isRejecting ? null : order.id,
+                    );
+                  }}
+                  className="rounded-lg border border-red-700 bg-white px-5 py-3 text-sm font-bold text-red-800 transition hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-200 disabled:cursor-not-allowed disabled:border-slate-400 disabled:text-slate-500"
+                >
+                  {isRejecting
+                    ? "Cancel rejection"
+                    : "Reject Batch"}
+                </button>
+              </div>
+
+              {!allCounted ? (
+                <p className="mt-3 text-sm text-slate-700">
+                  Approve Batch is disabled until every
+                  component has a physical count.
+                </p>
+              ) : redCount > 0 ? (
+                <p className="mt-3 text-sm font-semibold text-red-800">
+                  Approve Batch is disabled because a
+                  shortage is present. Reject the batch
+                  with a reason or correct the physical
+                  count before approval.
+                </p>
+              ) : null}
+
+              {isRejecting ? (
+                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <label
+                    htmlFor={`rejection-note-${order.id}`}
+                    className="block text-sm font-bold text-red-950"
+                  >
+                    Rejection reason
+                  </label>
+
+                  <p className="mt-1 text-sm text-red-900">
+                    Required. This note becomes part of
+                    the permanent verification audit.
+                  </p>
+
+                  <textarea
+                    id={`rejection-note-${order.id}`}
+                    value={
+                      rejectionNotes[order.id] ?? ""
+                    }
+                    onChange={(event) => {
+                      const value = event.target.value;
+
+                      setRejectionNotes(
+                        (current) => ({
+                          ...current,
+                          [order.id]: value,
+                        }),
+                      );
+
+                      setDecisionError(null);
+                    }}
+                    rows={3}
+                    placeholder="Describe the shortage, defect, or reason for returning this batch to cutting."
+                    className="mt-3 w-full rounded-lg border border-red-300 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-red-700 focus:outline-none focus:ring-4 focus:ring-red-200"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={
+                      isProcessingDecision ||
+                      !(
+                        rejectionNotes[
+                          order.id
+                        ]?.trim().length
+                      )
+                    }
+                    onClick={() =>
+                      submitDecision(
+                        order.id,
+                        "REJECTED",
+                      )
+                    }
+                    className="mt-3 rounded-lg bg-red-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {isProcessingDecision
+                      ? "Rejecting..."
+                      : "Confirm Rejection"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </section>
         );
