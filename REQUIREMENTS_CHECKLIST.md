@@ -24,8 +24,8 @@ Legend:
 - [x] Implement real user authentication.
 - [x] Store passwords securely as password hashes.
 - [x] Implement secure server-side sessions.
-- [ ] Implement authentication-aware navigation.
-- [ ] Provide a visible role switcher/demo credential panel.
+- [x] Implement authentication-aware navigation.
+- [x] Provide a visible role switcher/demo credential panel.
 - [x] Seed demo credentials for all three roles.
 - [ ] Enforce permissions on the backend.
 
