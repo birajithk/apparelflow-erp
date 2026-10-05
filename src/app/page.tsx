@@ -7,6 +7,8 @@ import type { UserRole } from "@/server/auth/types";
 import { getProductionRecipes } from "@/server/recipes/get-production-recipes";
 import { VerifierTerminal } from "@/components/verification/verifier-terminal";
 import { getPendingVerificationOrders } from "@/server/verification/get-pending-orders";
+import { RejectedBatchesPanel } from "@/components/cutting/rejected-batches-panel";
+import { getRejectedCuttingOrders } from "@/server/cutting/get-rejected-orders";
 
 const workspaceDetails: Record<
   UserRole,
@@ -44,6 +46,11 @@ export default async function Home() {
   const recipes =
     user.role === "cutting_supervisor"
       ? await getProductionRecipes()
+      : [];
+
+  const rejectedOrders =
+    user.role === "cutting_supervisor"
+      ? await getRejectedCuttingOrders()
       : [];
 
   const pendingVerificationOrders =
@@ -112,7 +119,13 @@ export default async function Home() {
           </div>
 
           {user.role === "cutting_supervisor" ? (
-            <CreateOrderForm recipes={recipes} />
+            <div className="space-y-6">
+              <CreateOrderForm recipes={recipes} />
+
+              <RejectedBatchesPanel
+                initialOrders={rejectedOrders}
+              />
+            </div>
           ) : user.role === "cutting_verifier" ? (
             <VerifierTerminal
               initialOrders={pendingVerificationOrders}
