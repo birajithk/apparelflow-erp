@@ -125,9 +125,9 @@ Legend:
 
 - [ ] Display every expected recipe component.
 - [ ] Allow the Verifier to enter actual component counts.
-- [ ] Calculate status as actual == expected: GREEN.
-- [ ] Calculate status as actual > expected: YELLOW.
-- [ ] Calculate status as actual < expected: RED.
+- [x] Calculate status as actual == expected: GREEN.
+- [x] Calculate status as actual > expected: YELLOW.
+- [x] Calculate status as actual < expected: RED.
 - [ ] Show traffic-light feedback in real time.
 - [ ] Record surplus quantities for YELLOW components.
 - [ ] Allow YELLOW components to pass verification.
@@ -271,9 +271,9 @@ Legend:
 - [ ] Ensure focused input states have adequate contrast.
 - [ ] Provide immediate inline input errors.
 - [ ] Reject empty required fields.
-- [ ] Reject negative numeric values.
+- [x] Reject negative numeric values.
 - [ ] Reject non-numeric values in numeric fields.
-- [ ] Reject decimal values in integer-only fields.
+- [x] Reject decimal values in integer-only fields.
 - [ ] Reject invalid numeric payloads on the backend.
 - [ ] Ensure usable layouts across common screen sizes.
 - [ ] Persist created orders across reloads.
