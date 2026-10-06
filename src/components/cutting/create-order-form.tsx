@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import type { ProductionRecipe } from "@/server/recipes/get-production-recipes";
+import { normalizeFabricDifference } from "@/lib/fabric-variance";
 
 interface CreateOrderFormProps {
   recipes: ProductionRecipe[];
@@ -84,15 +85,16 @@ export function CreateOrderForm({
   const fabricDifference =
     expectedFabric !== null &&
     parsedActualFabricYards !== null
-      ? parsedActualFabricYards - expectedFabric
+      ? normalizeFabricDifference(
+          parsedActualFabricYards,
+          expectedFabric,
+        )
       : null;
 
   const fabricVariancePct =
     expectedFabric !== null &&
-    parsedActualFabricYards !== null
-      ? ((parsedActualFabricYards - expectedFabric) /
-          expectedFabric) *
-        100
+    fabricDifference !== null
+      ? (fabricDifference / expectedFabric) * 100
       : null;
 
   const exceedsWastageCap =
@@ -241,11 +243,25 @@ export function CreateOrderForm({
               id="recipe"
               value={recipeId}
               onChange={(event) => {
-                setRecipeId(event.target.value);
+                const value = event.target.value;
+
+                setRecipeId(value);
+
                 setErrors((current) => ({
                   ...current,
-                  recipeId: undefined,
+                  recipeId: value
+                    ? undefined
+                    : "Select a production recipe.",
+                  form: undefined,
                 }));
+              }}
+              onBlur={() => {
+                if (!recipeId) {
+                  setErrors((current) => ({
+                    ...current,
+                    recipeId: "Select a production recipe.",
+                  }));
+                }
               }}
               className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
             >
@@ -278,11 +294,27 @@ export function CreateOrderForm({
               inputMode="numeric"
               value={targetQty}
               onChange={(event) => {
-                setTargetQty(event.target.value);
+                const value = event.target.value;
+
+                setTargetQty(value);
+
                 setErrors((current) => ({
                   ...current,
-                  targetQty: undefined,
+                  targetQty:
+                    parsePositiveInteger(value) === null
+                      ? "Target quantity must be a positive whole number."
+                      : undefined,
+                  form: undefined,
                 }));
+              }}
+              onBlur={() => {
+                if (parsePositiveInteger(targetQty) === null) {
+                  setErrors((current) => ({
+                    ...current,
+                    targetQty:
+                      "Target quantity must be a positive whole number.",
+                  }));
+                }
               }}
               placeholder="Enter number of garments"
               className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
@@ -307,11 +339,25 @@ export function CreateOrderForm({
               id="fabricRollId"
               value={fabricRollId}
               onChange={(event) => {
-                setFabricRollId(event.target.value);
+                const value = event.target.value;
+
+                setFabricRollId(value);
+
                 setErrors((current) => ({
                   ...current,
-                  fabricRollId: undefined,
+                  fabricRollId: value.trim()
+                    ? undefined
+                    : "Fabric roll ID is required.",
+                  form: undefined,
                 }));
+              }}
+              onBlur={() => {
+                if (!fabricRollId.trim()) {
+                  setErrors((current) => ({
+                    ...current,
+                    fabricRollId: "Fabric roll ID is required.",
+                  }));
+                }
               }}
               placeholder="e.g. FAB-ROLL-882"
               className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
@@ -337,11 +383,29 @@ export function CreateOrderForm({
               inputMode="decimal"
               value={actualFabricYards}
               onChange={(event) => {
-                setActualFabricYards(event.target.value);
+                const value = event.target.value;
+
+                setActualFabricYards(value);
+
                 setErrors((current) => ({
                   ...current,
-                  actualFabricYards: undefined,
+                  actualFabricYards:
+                    parsePositiveDecimal(value) === null
+                      ? "Actual fabric used must be a positive number."
+                      : undefined,
+                  form: undefined,
                 }));
+              }}
+              onBlur={() => {
+                if (
+                  parsePositiveDecimal(actualFabricYards) === null
+                ) {
+                  setErrors((current) => ({
+                    ...current,
+                    actualFabricYards:
+                      "Actual fabric used must be a positive number.",
+                  }));
+                }
               }}
               placeholder="Enter total fabric used"
               className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"

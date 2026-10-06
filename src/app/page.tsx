@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
-import { CreateOrderForm } from "@/components/cutting/create-order-form";
+import { CreateOrderDialog } from "@/components/cutting/create-order-dialog";
 import { getCurrentUser } from "@/server/auth/session";
 import type { UserRole } from "@/server/auth/types";
 import { getProductionRecipes } from "@/server/recipes/get-production-recipes";
@@ -127,7 +127,7 @@ export default async function Home() {
 
           {user.role === "cutting_supervisor" ? (
             <div className="space-y-6">
-              <CreateOrderForm recipes={recipes} />
+              <CreateOrderDialog recipes={recipes} />
 
               <RejectedBatchesPanel
                 initialOrders={rejectedOrders}
