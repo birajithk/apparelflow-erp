@@ -9,6 +9,8 @@ import { VerifierTerminal } from "@/components/verification/verifier-terminal";
 import { getPendingVerificationOrders } from "@/server/verification/get-pending-orders";
 import { RejectedBatchesPanel } from "@/components/cutting/rejected-batches-panel";
 import { getRejectedCuttingOrders } from "@/server/cutting/get-rejected-orders";
+import { SewingQueuePanel } from "@/components/sewing/sewing-queue-panel";
+import { getSewingQueue } from "@/server/sewing/get-sewing-queue";
 
 const workspaceDetails: Record<
   UserRole,
@@ -57,6 +59,11 @@ export default async function Home() {
     user.role === "cutting_verifier"
       ? await getPendingVerificationOrders()
       : [];
+
+  const sewingQueueOrders =
+  user.role === "sewing_supervisor"
+    ? await getSewingQueue()
+    : [];
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -131,16 +138,9 @@ export default async function Home() {
               initialOrders={pendingVerificationOrders}
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6">
-              <p className="font-semibold text-slate-900">
-                Sewing workspace implementation is coming next.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                The Sewing Supervisor cannot access Cutting
-                Supervisor or Cutting Verifier controls.
-              </p>
-            </div>
+            <SewingQueuePanel
+              initialOrders={sewingQueueOrders}
+            />
           )}
         </section>
       </div>
