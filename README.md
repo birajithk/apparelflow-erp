@@ -8,7 +8,7 @@ The critical production gate is enforced on the server and database-backed workf
 
 ## Live Application
 
-**Production URL:** Pending final Vercel deployment.
+**Production URL:** https://apparelflow-erp-five.vercel.app/
 
 **GitHub Repository:**
 https://github.com/birajithk/apparelflow-erp
@@ -48,7 +48,7 @@ The project intentionally implements this production checkpoint rather than the 
 | Automated tests | 37 passing |
 | AI optimization report | Complete |
 | Production dependency audit | 0 vulnerabilities |
-| Public deployment | Pending final Vercel deployment |
+| Public deployment | Live on Vercel |
 
 ## Screenshots
 

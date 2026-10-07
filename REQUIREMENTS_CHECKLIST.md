@@ -215,7 +215,7 @@ Notable required fields are present, including:
 - ✅ Inline validation errors are visible.
 - ✅ Traffic-light states include text labels, not color only.
 - ✅ Native dialog behavior is used for order creation.
-- 🟡 Perform one final contrast/responsive audit on the deployed production URL.
+- ✅ Final contrast/responsive audit passed on the deployed production URL.
 
 ## 15. Persistence
 
@@ -286,12 +286,12 @@ git diff --check
 - ✅ Screenshots.
 
 Still required:
-- 🔴 Update Sewing Queue status from `In progress` to `Implemented`.
-- 🔴 Update automated tests from `Planned` to `37 passing tests`.
-- 🔴 Remove outdated text saying Sewing Queue is the next workflow.
-- 🔴 Remove outdated text saying automated tests will be added later.
-- 🔴 Add/update Sewing Supervisor screenshot section if a screenshot exists.
-- 🔴 Add public production URL after deployment.
+- ✅ README Sewing Queue status updated to `Implemented`.
+- ✅ README automated test status updated to `37 passing tests`.
+- ✅ Outdated Sewing Queue progress wording removed.
+- ✅ Outdated automated-test planning wording removed.
+- ℹ️ Sewing Supervisor screenshot is optional and is not required by the assessment.
+- ✅ Public production URL added to README.
 
 ### Architecture Documentation
 - ✅ Architecture summary exists in README.
@@ -307,7 +307,7 @@ Still required:
 - ✅ Development uses incremental/atomic commits.
 - ✅ Automated testing, validation hardening, and AI report have focused commits.
 - ✅ Main is synchronized with origin.
-- 🟡 Remove `AGENTS.md` / `CLAUDE.md` before final submission if they contain only AI-agent development instructions.
+- ✅ Unnecessary `AGENTS.md` and `CLAUDE.md` development-agent files removed.
 
 ## 21. Mandatory Submission Requirements
 
@@ -321,20 +321,20 @@ Still required:
 | Demo credentials for all 3 roles | ✅ PASS |
 | Detailed architecture document | ✅ PASS — `docs/ARCHITECTURE.md` |
 | Automated tests via `npm test` | ✅ PASS — 37 tests |
-| Public cloud deployment | 🔴 TODO |
-| Public live URL | 🔴 TODO |
-| Final live contrast audit | 🟡 FINAL CHECK |
-| Final evaluator workflow smoke test | 🟡 FINAL CHECK |
+| Public cloud deployment | ✅ PASS — Vercel |
+| Public live URL | ✅ PASS — https://apparelflow-erp-five.vercel.app/ |
+| Final live contrast audit | ✅ PASS |
+| Final evaluator workflow smoke test | ✅ PASS |
 
 ## 22. Final Evaluator 5-Minute Audit
 
 Before submission, perform these checks against the deployed URL:
 
-- 🟡 Contrast: click every input/dropdown and verify readable text/focus/disabled states.
-- 🟡 RBAC: confirm each role only sees permitted functions.
-- 🟡 Hard stop: enter a shortage, confirm RED, disabled approval, and backend `422`.
-- 🟡 Valid handoff: create → count GREEN → approve → Sewing Queue → refresh persistence → start sewing → `IN_SEWING`.
-- 🟡 Repository: run `npm test`, confirm README live URL, AI report, and clean Git status.
+- ✅ Contrast: deployed inputs/dropdowns were checked for readable text, focus, and disabled states.
+- ✅ RBAC: all three demo roles were verified against their permitted functions.
+- ✅ Hard stop: shortage produced RED and prevented approval.
+- ✅ Valid handoff: create → GREEN counts → approve → Sewing Queue → refresh persistence → start sewing → `IN_SEWING` passed.
+- ✅ Repository: automated tests pass, AI report exists, and the production URL is documented.
 
 # Final Status
 
@@ -346,11 +346,12 @@ Before submission, perform these checks against the deployed URL:
 - ✅ AI optimization report complete.
 - ✅ Detailed architecture documentation present at `docs/ARCHITECTURE.md`.
 
-## Remaining before final submission
+## Final Submission Readiness
 
-1. 🔴 Refresh stale README sections.
-2. 🟡 Remove unnecessary AI-agent instruction files if they are not project documentation.
-3. 🔴 Deploy the final application publicly.
-4. 🔴 Add the live URL to README/submission.
-5. 🟡 Run the final evaluator-style browser smoke test on production.
-6. 🟡 Confirm clean Git status and passing production checks.
+✅ No known assessment-blocking items remain.
+
+- Production application is deployed and publicly accessible.
+- All three demo accounts authenticate successfully.
+- Evaluator-style RBAC, shortage hard-stop, persistence, approval, sewing handoff, and assembly-start checks passed on production.
+- Automated tests, TypeScript, lint, production build, and production dependency audit pass.
+- README, architecture documentation, security notes, requirements checklist, and AI optimization report are complete.
