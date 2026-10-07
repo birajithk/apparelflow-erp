@@ -1,81 +1,85 @@
 # ApparelFlow ERP
 
-ApparelFlow is a full-stack production execution system for garment manufacturing.
+ApparelFlow ERP is a full-stack garment-production execution system implementing the **Cutting Operations & Gatekeeper Verification Terminal** from the Webtezza Software Engineering Intern practical assessment.
 
-This project implements the **Cutting Operations & Gatekeeper Verification** workflow, where cutting batches must pass component-level quality verification before they can be released to the sewing floor.
+The application enforces a manufacturing hard stop: a cutting batch cannot enter sewing unless every required component has been counted, no shortage exists, and an authenticated Cutting Verifier has approved the batch.
 
-The core engineering objective is to enforce this manufacturing checkpoint on the **server**, so a shortage or unauthorized user cannot bypass the workflow through frontend manipulation or direct API requests.
+The critical production gate is enforced on the server and database-backed workflow rather than relying only on disabled buttons or hidden UI controls.
 
-## Project Scope
+## Live Application
 
-The application focuses on three factory roles:
+**Production URL:** Pending final Vercel deployment.
 
-| Role | Responsibility |
+**GitHub Repository:**
+https://github.com/birajithk/apparelflow-erp
+
+## Assessment Scope
+
+The project focuses on three factory roles:
+
+| Role | Main Responsibility |
 |---|---|
 | Cutting Supervisor | Creates cutting batches, records fabric usage, and handles rejected batches requiring re-cutting |
-| Cutting Verifier | Counts cut components, receives GREEN / YELLOW / RED status feedback, and approves or rejects batches |
+| Cutting Verifier | Performs independent component-count QC and approves or rejects batches |
 | Sewing Supervisor | Receives verified batches and starts sewing assembly |
 
-The project intentionally implements this production checkpoint rather than the entire ApparelFlow ERP platform.
+The project intentionally implements this production checkpoint rather than the complete ApparelFlow ERP platform.
 
-## Current Implementation Status
+## Implementation Status
 
 | Area | Status |
 |---|---|
 | Authentication | Implemented |
 | Server-side sessions | Implemented |
-| Role-based API authorization | Implemented |
+| Server-side RBAC | Implemented |
 | Production recipe seeding | Implemented |
-| Cutting order creation | Implemented |
+| Cutting order creation modal | Implemented |
 | Component multiplier engine | Implemented |
+| Immediate input validation | Implemented |
 | Verification terminal | Implemented |
-| GREEN / YELLOW / RED count logic | Implemented |
+| GREEN / YELLOW / RED traffic lights | Implemented |
 | Server-side shortage hard stop | Implemented |
 | Approval and rejection workflow | Implemented |
-| Immutable verification audit records | Implemented |
-| Rejected batch re-cut/resubmission | Implemented |
-| Fabric usage / wastage calculation | Implemented |
-| Sewing Supervisor queue | In progress |
-| Automated test suite | Planned after core workflow completion |
-| Production deployment | Add public URL after deployment |
+| Immutable verification audit trail | Implemented |
+| Rejected batch re-cut workflow | Implemented |
+| Fabric wastage calculation | Implemented |
+| Verified-only Sewing Queue | Implemented |
+| Start Sewing Assembly | Implemented |
+| Automated tests | 37 passing |
+| AI optimization report | Complete |
+| Production dependency audit | 0 vulnerabilities |
+| Public deployment | Pending final Vercel deployment |
 
 ## Screenshots
+
+### Demo Login
+
+![Demo Login](docs/screenshots/login.png)
+
+The application provides demo credentials for each factory role so evaluators can test role isolation and the complete production workflow.
 
 ### Cutting Supervisor
 
 ![Cutting Supervisor](docs/screenshots/cutting-supervisor.png)
 
-The Cutting Supervisor creates production batches from seeded garment recipes. Expected component quantities are generated automatically from the target quantity and recipe component multipliers.
+The Cutting Supervisor creates production batches from seeded garment recipes.
 
-### Verification Terminal
+The system automatically calculates expected component quantities using:
+
+```text
+Expected Quantity =
+Target Garment Quantity × Pieces Per Garment
+```
+
+The supervisor records the fabric roll and actual fabric usage before submitting the batch to verification.
+
+### Cutting Verifier — Valid Counts
 
 ![Verification Terminal](docs/screenshots/verifier-green.png)
 
-The Cutting Verifier records actual cut-piece quantities for every required component.
+The Cutting Verifier records physical component counts.
 
-### Server-Enforced Shortage Gate
-
-![Shortage Hard Stop](docs/screenshots/verifier-red-hard-stop.png)
-
-Any component shortage is marked **RED**. A batch containing a shortage cannot be approved.
-
-### Re-cut Workflow
-
-![Rejected Batch Re-cut](docs/screenshots/rejected-batch-recut.png)
-
-Rejected batches return to the Cutting Supervisor, where additional fabric use and the re-cut reason are recorded before the batch is submitted for a fresh verification cycle.
-
-> The Sewing Supervisor screenshot will be added when the Sewing Queue workflow is complete.
-
-## Core Manufacturing Rules
-
-For each component:
-
-```text
-Expected Quantity = Target Garment Quantity × Pieces Per Garment
-```
-
-Verification status is calculated as:
+Traffic-light status is calculated in real time:
 
 ```text
 GREEN  → Actual Quantity = Expected Quantity
@@ -83,43 +87,129 @@ YELLOW → Actual Quantity > Expected Quantity
 RED    → Actual Quantity < Expected Quantity
 ```
 
-GREEN and YELLOW components may pass verification.
+GREEN and YELLOW components may satisfy the approval gate.
 
-A single RED component blocks batch approval.
+### Server-Enforced Shortage Hard Stop
 
-The approval rule is enforced independently on the backend. Frontend button states are treated only as usability controls and are not trusted as a security boundary.
+![Shortage Hard Stop](docs/screenshots/verifier-red-hard-stop.png)
+
+Any component shortage is marked RED.
+
+A batch containing any RED component cannot be approved. The UI disables approval, and the backend independently rejects illegal approval attempts.
+
+### Rejected Batch Re-Cut
+
+![Rejected Batch Re-cut](docs/screenshots/rejected-batch-recut.png)
+
+Rejected batches return to the Cutting Supervisor.
+
+The re-cut workflow records additional fabric usage and a corrective-action reason, increments the batch revision, resets component counts, and sends the corrected batch through a fresh verification cycle.
+
+Earlier verification records remain immutable.
 
 ## Manufacturing Workflow
 
 ```text
-Cutting Supervisor
-        |
-        v
-Create Cutting Order
+CUTTING_IN_PROGRESS
         |
         v
 PENDING_VERIFICATION
         |
         v
-Cutting Verifier
+Component Count QC
         |
-        +----------------------+
-        |                      |
-        v                      v
-     APPROVED               REJECTED
-        |                      |
-        v                      v
-     VERIFIED          Cutting Supervisor
-        |                      |
-        |                Re-cut / Resubmit
-        |                      |
-        +<---------------------+
-        |
-        v
-Sewing Queue
+        +-----------------------------+
+        |                             |
+        v                             v
+     REJECTED                      VERIFIED
+        |                             |
+        v                             v
+ Cutting Supervisor              Sewing Queue
+        |                             |
+        v                             v
+ Re-cut / Resubmit            Start Sewing Assembly
+        |                             |
+        +------> New Revision         v
+                                  IN_SEWING
 ```
 
-The Sewing Queue handoff is the next workflow being completed.
+## Production Gate Rules
+
+For every recipe component:
+
+```text
+GREEN  → Actual == Expected
+YELLOW → Actual > Expected
+RED    → Actual < Expected
+```
+
+Approval requires all required components to have valid saved counts.
+
+Approval is rejected when:
+
+- any required component is missing;
+- any component is uncounted;
+- any component has RED shortage status;
+- the user is not an authenticated Cutting Verifier;
+- the order is not currently awaiting verification.
+
+YELLOW excess counts are recorded but do not automatically block approval.
+
+The backend performs these checks even if the frontend is bypassed.
+
+## Seeded Production Recipes
+
+### Casual Blouse — `REC-BL01`
+
+| Attribute | Value |
+|---|---|
+| Category | Blouse |
+| Standard Fabric | 1.8 yards / garment |
+| Wastage Cap | 5.0% |
+
+| Component | Pieces per Garment |
+|---|---:|
+| Front Body Panel | 1 |
+| Back Body Panel | 1 |
+| Sleeves (Left & Right) | 2 |
+| Collar & Stand | 1 |
+| Sleeve Cuffs | 2 |
+
+### Crop Top — `REC-CT02`
+
+| Attribute | Value |
+|---|---|
+| Category | Crop Top |
+| Standard Fabric | 1.1 yards / garment |
+| Wastage Cap | 8.0% |
+
+| Component | Pieces per Garment |
+|---|---:|
+| Front Chest Panel | 1 |
+| Back Support Panel | 1 |
+| Neck Binding Strip | 1 |
+| Hem Elastic Casing | 1 |
+| Side Strap Accents | 2 |
+
+## Fabric Wastage
+
+Expected fabric usage is derived from the production recipe:
+
+```text
+Expected Fabric =
+Target Quantity × Standard Fabric per Garment
+```
+
+The backend calculates verification-time fabric wastage as:
+
+```text
+Wastage % =
+((Actual Fabric Used - Expected Fabric) / Expected Fabric) × 100
+```
+
+The resulting percentage is stored with the immutable verification audit.
+
+The UI also normalizes insignificant JavaScript floating-point representation noise so mathematically equal fabric values display `0.00%` rather than `-0.00%`.
 
 ## Architecture
 
@@ -141,135 +231,159 @@ Authentication + RBAC Guards
 Server-only Domain Services
         |
         v
-PostgreSQL
+PostgreSQL / Neon
 ```
 
-Business rules are implemented in server-only services rather than relying on browser state.
+Security-sensitive business rules are implemented in server-only services.
 
-Examples include:
+The browser is treated as an interface rather than an authorization boundary.
 
-- authentication and role validation;
-- cutting-order creation;
-- component multiplier calculations;
-- component-count verification;
-- approval hard-stop validation;
-- rejection processing;
-- re-cut transactions;
-- wastage calculation;
-- immutable verification audit creation.
+Detailed architecture documentation is available at:
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed architecture.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Technology Stack
 
-- **Framework:** Next.js 16 App Router
-- **Frontend:** React 19
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Database:** PostgreSQL
-- **Database driver:** `pg`
-- **Authentication:** Server-side database sessions
-- **Password hashing:** `bcryptjs`
-- **Deployment target:** Vercel
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 App Router |
+| Frontend | React 19 |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| Database | PostgreSQL |
+| Cloud Database | Neon |
+| Database Driver | `pg` |
+| Authentication | Server-side database sessions |
+| Password Hashing | `bcryptjs` |
+| Tests | Vitest |
+| Deployment Target | Vercel |
 
 ## Database Model
 
-The main relational entities are:
-
 ### `users`
 
-Stores authenticated factory users and their assigned roles.
+Stores authenticated factory users, password hashes, names, and factory roles.
 
 ### `sessions`
 
-Stores hashed server-side authentication session tokens and expiry timestamps.
+Stores hashed server-side authentication tokens and expiration timestamps.
 
 ### `recipes`
 
-Stores garment production recipes including standard fabric requirements and wastage caps.
+Stores garment production recipes, categories, standard fabric usage, and wastage caps.
 
 ### `recipe_components`
 
-Stores the individual cut components required for each garment recipe.
+Stores required production components and pieces-per-garment multipliers.
+
+The schema also includes the assessment-required `image_url` field.
 
 ### `cutting_orders`
 
-Stores production batches, quantities, fabric usage, manufacturing state, revision number, and timestamps.
+Stores production batches including recipe, target quantity, fabric roll, cumulative actual fabric usage, production status, revision number, creator, and manufacturing timestamps.
 
 ### `cutting_fabric_entries`
 
-Stores immutable original and re-cut fabric consumption records.
+Stores original and re-cut fabric consumption entries so corrective cutting does not overwrite earlier fabric history.
 
 ### `verification_items`
 
-Stores expected quantities, actual quantities, and the current GREEN / YELLOW / RED status of every component.
+Stores the current expected quantity, actual quantity, and GREEN / YELLOW / RED state for each component.
 
 ### `verification_logs`
 
-Stores the permanent verification decision, authenticated verifier, order revision, wastage percentage, fabric snapshot, and decision timestamp.
+Stores immutable verification decisions including:
+
+- authenticated verifier ID;
+- batch revision;
+- APPROVED / REJECTED decision;
+- rejection reason when applicable;
+- fabric usage snapshot;
+- wastage percentage;
+- server/database decision timestamp.
 
 ### `verification_log_items`
 
-Stores immutable component-level snapshots associated with each verification decision.
+Stores immutable component snapshots for each verification decision including:
 
-Database constraints provide an additional integrity layer for valid roles, quantities, verification states, and audit records.
+- component ID;
+- expected quantity;
+- actual quantity;
+- traffic-light status;
+- count variance.
+
+The database enforces:
+
+```text
+variance = actual_qty - expected_qty
+```
 
 ## Security Design
 
 Security-sensitive decisions are enforced on the server.
 
-Protected API routes authenticate the current session and verify the required role before executing business operations.
-
-For example:
+Protected endpoints authenticate the active session and require the appropriate role before executing business operations.
 
 ```text
 POST /api/cutting/orders
-Required role: cutting_supervisor
-
-PATCH /api/verification/count
-Required role: cutting_verifier
-
-POST /api/verification/decision
-Required role: cutting_verifier
+Role: cutting_supervisor
 
 POST /api/cutting/recut
-Required role: cutting_supervisor
+Role: cutting_supervisor
+
+PATCH /api/verification/count
+Role: cutting_verifier
+
+POST /api/verification/decision
+Role: cutting_verifier
+
+GET /api/sewing/queue
+Role: sewing_supervisor
+
+POST /api/sewing/start
+Role: sewing_supervisor
 ```
 
-The authenticated user ID is obtained from the server session rather than accepted from request payloads.
+Verifier and Sewing Supervisor identity are derived from the authenticated server session and are never trusted from client request bodies.
 
-Verification approval performs authoritative checks inside a database transaction.
+Verification timestamps are generated from trusted server/database context.
 
-Approval is rejected when:
+### Sewing Queue Isolation
 
-- the batch is not awaiting verification;
-- required components are missing;
-- one or more components have not been counted;
-- any component has a RED shortage status.
+The Sewing Queue database query explicitly filters:
 
-Verification and fabric audit records are protected against application-level update or deletion using PostgreSQL triggers.
+```sql
+WHERE co.status = 'VERIFIED'
+```
 
-## Seeded Production Recipes
+Pending, rejected, unverified, and already-started batches cannot be exposed merely by changing URL parameters.
 
-Two production recipes are provided for demonstration.
+### Immutable Audit Records
 
-**Casual Blouse — `REC-BL01`**
+Verification decisions and component snapshots are protected against application-level update or deletion using PostgreSQL triggers.
 
-Standard fabric: 1.8 yards per garment  
-Wastage cap: 5%
+Re-cutting creates a new verification revision rather than overwriting historical evidence.
 
-Components include Front Body Panel, Back Body Panel, Sleeves, Collar & Stand, and Sleeve Cuffs.
+## Defensive Validation
 
-**Crop Top — `REC-CT02`**
+Target garment quantities and verification component counts require integer values where appropriate.
 
-Standard fabric: 1.1 yards per garment  
-Wastage cap: 8%
+The application rejects invalid values such as:
 
-Components include Front Chest Panel, Back Support Panel, Neck Binding Strip, Hem Elastic Casing, and Side Strap Accents.
+```text
+-1
+2.5
+abc
+1e2
+```
+
+Component count `0` is valid because it represents a real physical count and correctly produces RED when the expected quantity is greater than zero.
+
+Fabric measurements intentionally support positive decimal values because fabric is measured in yards.
+
+Forms provide immediate inline error feedback.
 
 ## Demo Accounts
-
-The project provides one demo account for each factory role.
 
 | Role | Email | Password |
 |---|---|---|
@@ -277,36 +391,38 @@ The project provides one demo account for each factory role.
 | Cutting Verifier | `cutting.verifier@apparelflow.demo` | `cutting.verifier@2026` |
 | Sewing Supervisor | `sewing.supervisor@apparelflow.demo` | `sewing.supervisor@2026` |
 
-These credentials are intentionally provided for application evaluation.
+These credentials are intentionally included for assessment evaluation.
 
 ## Local Development
 
-### 1. Install dependencies
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure environment variables
+### Configure environment variables
 
-Create `.env.local` based on `.env.example`.
+Create `.env.local` from `.env.example`.
 
 ```env
 DATABASE_URL="postgresql://..."
 DIRECT_DATABASE_URL="postgresql://..."
 ```
 
-`DATABASE_URL` is used by the application.
+`DATABASE_URL` is used by the running application.
 
-`DIRECT_DATABASE_URL` is used for migrations and database seeding.
+`DIRECT_DATABASE_URL` is used for database migrations and seed scripts.
 
-### 3. Run database migrations
+Never commit real database credentials.
+
+### Run database migrations
 
 ```bash
 npm run db:migrate
 ```
 
-### 4. Seed demo users
+### Seed demo users
 
 ```bash
 npm run db:seed:users
@@ -314,7 +430,7 @@ npm run db:seed:users
 
 Production recipes are installed through the database migrations.
 
-### 5. Start the development server
+### Start development server
 
 ```bash
 npm run dev
@@ -326,33 +442,98 @@ Open:
 http://localhost:3000
 ```
 
-## Quality Checks
+## Automated Tests
 
-The current application can be checked with:
+Run the complete automated test suite with:
 
 ```bash
+npm test
+```
+
+Current result:
+
+```text
+Test Files  8 passed
+Tests       37 passed
+```
+
+Mandatory assessment coverage includes:
+
+1. All-GREEN components can be approved by an authenticated Cutting Verifier.
+2. A RED shortage component blocks approval.
+3. Rejection without a reason is rejected.
+4. A non-verifier receives `403 Forbidden` when attempting verification.
+5. Unapproved orders cannot appear in the Sewing Queue database query.
+
+Additional tests cover YELLOW approval, missing and uncounted components, sewing-start safeguards, malformed requests, identity-spoof prevention, re-cut API validation, verification count parsing, and fabric-variance regression.
+
+## Quality Checks
+
+Before submission the application is checked with:
+
+```bash
+npm test
 npx tsc --noEmit
 npm run lint
 npm run build
 git diff --check
 ```
 
-Automated domain tests will be added once the remaining core Sewing Queue workflow is complete.
+The latest local verification passes all of these checks.
 
-The planned mandatory test coverage includes:
+## Dependency Security
 
-1. An all-GREEN batch can be approved by an authenticated Cutting Verifier.
-2. A RED component blocks approval.
-3. Rejection without a reason is rejected by the backend.
-4. A non-verifier receives `403 Forbidden` when attempting verification approval.
-5. Unapproved batches never appear in the Sewing Queue.
+Production dependencies currently report:
+
+```text
+npm audit --omit=dev
+0 vulnerabilities
+```
+
+The full dependency tree contains a known development-only ESLint/glob advisory.
+
+The finding and mitigation decision are documented at:
+
+[`docs/SECURITY_NOTES.md`](docs/SECURITY_NOTES.md)
+
+A forced breaking dependency downgrade was intentionally not applied.
+
+## AI-Assisted Engineering
+
+The project used AI-assisted development, but generated output was reviewed and hardened rather than accepted blindly.
+
+The report documents real issues discovered during development, including:
+
+- a PostgreSQL NULL/CHECK constraint weakness;
+- an inline order form that did not satisfy the required modal workflow;
+- floating-point `-0.00%` fabric variance;
+- verifier draft/server state synchronization.
+
+See:
+
+[`AI_OPTIMIZATION_REPORT.md`](AI_OPTIMIZATION_REPORT.md)
+
+## Assessment Compliance
+
+The project requirements checklist is maintained at:
+
+[`REQUIREMENTS_CHECKLIST.md`](REQUIREMENTS_CHECKLIST.md)
+
+It tracks the assessment requirements, completed functionality, and final deployment checks.
 
 ## Project Structure
 
 ```text
 apparelflow-erp/
+├── AI_OPTIMIZATION_REPORT.md
+├── REQUIREMENTS_CHECKLIST.md
+├── README.md
 ├── database/
 │   └── migrations/
+│       ├── 001_initial_schema.sql
+│       ├── 002_harden_verification_constraints.sql
+│       ├── 003_seed_production_recipes.sql
+│       └── 004_cutting_order_number_sequence.sql
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── SECURITY_NOTES.md
@@ -368,50 +549,36 @@ apparelflow-erp/
 │   ├── components/
 │   │   ├── auth/
 │   │   ├── cutting/
+│   │   ├── sewing/
 │   │   └── verification/
+│   ├── lib/
 │   └── server/
 │       ├── auth/
 │       ├── cutting/
 │       ├── db/
-│       ├── orders/
 │       ├── recipes/
+│       ├── sewing/
 │       └── verification/
+├── tests/
+│   ├── cutting/
+│   ├── sewing/
+│   └── verification/
 └── package.json
 ```
 
-## Remaining Work
-
-The immediate remaining core functionality is the **Sewing Supervisor workflow**:
-
-```text
-VERIFIED
-   |
-   v
-Sewing Queue
-   |
-   v
-Start Sewing Assembly
-   |
-   v
-IN_SEWING
-```
-
-The Sewing Queue must expose only verified batches and enforce that filtering on the server/database side.
-
-After that workflow stabilizes, the automated tests and final deployment verification will be completed.
-
 ## Engineering Principles
 
-This implementation follows several important rules:
+The implementation follows several defensive engineering rules:
 
-- authentication decisions are made on the server;
-- roles are enforced by backend API guards;
-- frontend visibility is not treated as authorization;
-- manufacturing state transitions are controlled by server logic;
-- database transactions protect multi-step operations;
-- verification identities and timestamps come from trusted server context;
-- audit evidence is preserved rather than overwritten;
-- rejected batches begin a fresh verification revision;
+- authentication decisions are server-controlled;
+- roles are enforced by backend guards;
+- frontend visibility is not authorization;
+- manufacturing state transitions are server-controlled;
+- database transactions protect multi-step state changes;
+- audit identities and timestamps come from trusted server context;
+- verification evidence is immutable;
+- rejected batches create fresh revisions rather than destroying history;
+- Sewing Queue eligibility is enforced at the database-query level;
 - database constraints provide defense in depth.
 
-The primary goal is not merely to display the manufacturing workflow, but to make invalid production transitions difficult to bypass.
+The goal is not only to display the manufacturing workflow, but to make invalid production transitions non-bypassable.
