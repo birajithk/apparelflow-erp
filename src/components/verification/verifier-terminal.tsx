@@ -7,37 +7,22 @@ import type {
   PendingVerificationComponent,
 } from "@/server/verification/get-pending-orders";
 
+import {
+  calculateVerificationStatus,
+  parseVerificationCount,
+  type VerificationCountStatus,
+} from "@/lib/verification-count";
+
 interface VerifierTerminalProps {
   initialOrders: PendingVerificationOrder[];
 }
-
-type CountStatus = "GREEN" | "YELLOW" | "RED" | null;
 
 interface SavingState {
   itemId: string | null;
   error: string | null;
 }
 
-function calculateStatus(
-  actualQty: number | null,
-  expectedQty: number,
-): CountStatus {
-  if (actualQty === null) {
-    return null;
-  }
-
-  if (actualQty === expectedQty) {
-    return "GREEN";
-  }
-
-  if (actualQty > expectedQty) {
-    return "YELLOW";
-  }
-
-  return "RED";
-}
-
-function statusClasses(status: CountStatus): string {
+function statusClasses(status: VerificationCountStatus): string {
   switch (status) {
     case "GREEN":
       return "border-emerald-300 bg-emerald-50 text-emerald-950";
@@ -50,7 +35,7 @@ function statusClasses(status: CountStatus): string {
   }
 }
 
-function statusLabel(status: CountStatus): string {
+function statusLabel(status: VerificationCountStatus): string {
   switch (status) {
     case "GREEN":
       return "GREEN — Match";
@@ -86,6 +71,15 @@ export function VerifierTerminal({
   const [decisionError, setDecisionError] =
     useState<string | null>(null);
 
+  const [countDrafts, setCountDrafts] =
+    useState<Record<string, string>>({});
+
+  const [countErrors, setCountErrors] =
+    useState<Record<string, string | undefined>>({});
+
+  const [rejectionNoteErrors, setRejectionNoteErrors] =
+    useState<Record<string, string | undefined>>({});
+
   function updateLocalItem(
     itemId: string,
     updates: Partial<PendingVerificationComponent>,
@@ -107,81 +101,62 @@ export function VerifierTerminal({
     item: PendingVerificationComponent,
     rawValue: string,
   ) {
+    const parsed = parseVerificationCount(rawValue);
+
+    if (!parsed.valid) {
+      setCountErrors((current) => ({
+        ...current,
+        [item.id]:
+          parsed.error ??
+          "Enter a valid component count.",
+      }));
+
+      return;
+    }
+
     setSaving({
       itemId: item.id,
       error: null,
     });
 
-
-
-
-    let actualQty: number | null = null;
-
-    if (rawValue !== "") {
-      if (!/^\d+$/.test(rawValue)) {
-        setSaving({
-          itemId: null,
-          error:
-            "Component counts must be non-negative whole numbers.",
-        });
-        return;
-      }
-
-      actualQty = Number(rawValue);
-
-      if (!Number.isSafeInteger(actualQty)) {
-        setSaving({
-          itemId: null,
-          error: "Component count is too large.",
-        });
-        return;
-      }
-    }
-
-    const previousActualQty = item.actualQty;
-    const previousStatus = item.status;
-
-    const previewStatus = calculateStatus(
-      actualQty,
-      item.expectedQty,
-    );
-
-    updateLocalItem(item.id, {
-      actualQty,
-      status: previewStatus,
-    });
-
     try {
-      const response = await fetch("/api/verification/count", {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/verification/count",
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            verificationItemId: item.id,
+            actualQty: parsed.actualQty,
+          }),
         },
-        body: JSON.stringify({
-          verificationItemId: item.id,
-          actualQty,
-        }),
-      });
+      );
 
       const data = (await response.json()) as {
         item?: {
           actual_qty: number | null;
-          status: CountStatus;
+          status: VerificationCountStatus;
         };
         error?: string;
       };
 
       if (!response.ok || !data.item) {
-        updateLocalItem(item.id, {
-          actualQty: previousActualQty,
-          status: previousStatus,
+        // Remove the unsaved draft. The input therefore
+        // returns to the last server-confirmed count.
+        setCountDrafts((current) => {
+          const next = { ...current };
+          delete next[item.id];
+          return next;
         });
 
         setSaving({
           itemId: null,
           error:
-            data.error ?? "Unable to save component count.",
+            data.error ??
+            "Unable to save component count.",
         });
 
         return;
@@ -192,14 +167,27 @@ export function VerifierTerminal({
         status: data.item.status,
       });
 
+      setCountDrafts((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+
+      setCountErrors((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+
       setSaving({
         itemId: null,
         error: null,
       });
     } catch {
-      updateLocalItem(item.id, {
-        actualQty: previousActualQty,
-        status: previousStatus,
+      setCountDrafts((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
       });
 
       setSaving({
@@ -220,9 +208,15 @@ export function VerifierTerminal({
       decision === "REJECTED" &&
       rejectionNote.length === 0
     ) {
+      setRejectionNoteErrors((current) => ({
+        ...current,
+        [orderId]: "A rejection reason is required.",
+      }));
+
       setDecisionError(
         "Enter a rejection reason before rejecting this batch.",
       );
+
       return;
     }
 
@@ -277,6 +271,13 @@ export function VerifierTerminal({
         delete next[orderId];
         return next;
       });
+
+      setRejectionNoteErrors((current) => {
+        const next = { ...current };
+        delete next[orderId];
+        return next;
+      });
+
     } catch {
       setDecisionError(
         "Unable to connect to the server.",
@@ -326,23 +327,76 @@ export function VerifierTerminal({
       ) : null}
 
       {orders.map((order) => {
-        const countedComponents = order.components.filter(
-          (component) => component.actualQty !== null,
+        const componentViews = order.components.map(
+          (component) => {
+            const hasDraft = Object.prototype.hasOwnProperty.call(
+              countDrafts,
+              component.id,
+            );
+
+            const rawValue = hasDraft
+              ? countDrafts[component.id]
+              : component.actualQty === null
+                ? ""
+                : String(component.actualQty);
+
+            const parsed = parseVerificationCount(rawValue);
+
+            const previewStatus =
+              parsed.valid
+                ? calculateVerificationStatus(
+                    parsed.actualQty,
+                    component.expectedQty,
+                  )
+                : null;
+
+            return {
+              component,
+              rawValue,
+              parsed,
+              previewStatus,
+              hasDraft,
+            };
+          },
+        );
+
+        const countedComponents = componentViews.filter(
+          (view) =>
+            view.parsed.valid &&
+            view.parsed.actualQty !== null,
         ).length;
 
-        const redCount = order.components.filter(
-          (component) => component.status === "RED",
+        const redCount = componentViews.filter(
+          (view) => view.previewStatus === "RED",
         ).length;
 
-        const yellowCount = order.components.filter(
-          (component) => component.status === "YELLOW",
+        const yellowCount = componentViews.filter(
+          (view) => view.previewStatus === "YELLOW",
         ).length;
 
         const allCounted =
           countedComponents === order.components.length;
 
+        const hasUnsavedCounts = componentViews.some(
+          (view) => view.hasDraft,
+        );
+
+        const hasCountErrors = componentViews.some(
+          (view) => Boolean(countErrors[view.component.id]),
+        );
+
+        const isSavingOrder =
+          saving.itemId !== null &&
+          order.components.some(
+            (component) => component.id === saving.itemId,
+          );
+
         const canApprove =
-          allCounted && redCount === 0;
+          allCounted &&
+          redCount === 0 &&
+          !hasUnsavedCounts &&
+          !hasCountErrors &&
+          !isSavingOrder;
 
         const isProcessingDecision =
           decisionOrderId === order.id;
@@ -467,82 +521,117 @@ export function VerifierTerminal({
                   </thead>
 
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {order.components.map((component) => (
-                      <tr key={component.id}>
-                        <td className="px-4 py-4">
-                          <p className="font-medium text-slate-950">
-                            {component.componentName}
-                          </p>
-
-                          <p className="mt-1 text-xs text-slate-600">
-                            {component.piecesPerGarment} per garment
-                          </p>
-                        </td>
-
-                        <td className="px-4 py-4 text-right text-lg font-bold text-slate-950">
-                          {component.expectedQty}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <input
-                            aria-label={`Actual count for ${component.componentName}`}
-                            inputMode="numeric"
-                            value={
-                              component.actualQty === null
-                                ? ""
-                                : component.actualQty
-                            }
-                            onChange={(event) => {
-                              const value = event.target.value;
-
-                              if (
-                                value !== "" &&
-                                !/^\d+$/.test(value)
-                              ) {
-                                return;
-                              }
-
-                              const actualQty =
-                                value === ""
-                                  ? null
-                                  : Number(value);
-
-                              updateLocalItem(component.id, {
-                                actualQty,
-                                status: calculateStatus(
-                                  actualQty,
-                                  component.expectedQty,
-                                ),
-                              });
-                            }}
-                            onBlur={(event) =>
-                              saveCount(
-                                component,
-                                event.target.value,
-                              )
-                            }
-                            className="w-32 rounded-lg border border-slate-400 bg-white px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
-                            placeholder="Count"
-                          />
-
-                          {saving.itemId === component.id ? (
-                            <p className="mt-1 text-xs font-medium text-slate-600">
-                              Saving...
+                    {componentViews.map(
+                      ({
+                        component,
+                        rawValue,
+                        parsed,
+                        previewStatus,
+                      }) => (
+                        <tr key={component.id}>
+                          <td className="px-4 py-4">
+                            <p className="font-medium text-slate-950">
+                              {component.componentName}
                             </p>
-                          ) : null}
-                        </td>
 
-                        <td className="px-4 py-4">
-                          <span
-                            className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-bold ${statusClasses(
-                              component.status,
-                            )}`}
-                          >
-                            {statusLabel(component.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                            <p className="mt-1 text-xs text-slate-600">
+                              {component.piecesPerGarment} per garment
+                            </p>
+                          </td>
+
+                          <td className="px-4 py-4 text-right text-lg font-bold text-slate-950">
+                            {component.expectedQty}
+                          </td>
+
+                          <td className="px-4 py-4">
+                            <input
+                              aria-label={`Actual count for ${component.componentName}`}
+                              aria-invalid={Boolean(
+                                countErrors[component.id],
+                              )}
+                              inputMode="numeric"
+                              value={rawValue}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                const result =
+                                  parseVerificationCount(value);
+
+                                setCountDrafts((current) => ({
+                                  ...current,
+                                  [component.id]: value,
+                                }));
+
+                                setCountErrors((current) => ({
+                                  ...current,
+                                  [component.id]:
+                                    result.valid
+                                      ? undefined
+                                      : result.error ??
+                                        "Enter a valid component count.",
+                                }));
+
+                                setSaving((current) => ({
+                                  ...current,
+                                  error: null,
+                                }));
+                              }}
+                              onBlur={(event) => {
+                                const result =
+                                  parseVerificationCount(
+                                    event.target.value,
+                                  );
+
+                                if (!result.valid) {
+                                  return;
+                                }
+
+                                void saveCount(
+                                  component,
+                                  event.target.value,
+                                );
+                              }}
+                              className="w-32 rounded-lg border border-slate-400 bg-white px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                              placeholder="Count"
+                            />
+
+                            {countErrors[component.id] ? (
+                              <p
+                                role="alert"
+                                className="mt-2 max-w-xs text-xs font-semibold text-red-800"
+                              >
+                                {countErrors[component.id]}
+                              </p>
+                            ) : null}
+
+                            {saving.itemId === component.id ? (
+                              <p className="mt-1 text-xs font-medium text-slate-600">
+                                Saving...
+                              </p>
+                            ) : null}
+                          </td>
+
+                          <td className="px-4 py-4">
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-bold ${statusClasses(
+                                previewStatus,
+                              )}`}
+                            >
+                              {statusLabel(previewStatus)}
+                            </span>
+
+                            {parsed.valid &&
+                            Object.prototype.hasOwnProperty.call(
+                              countDrafts,
+                              component.id,
+                            ) ? (
+                              <p className="mt-1 text-xs font-medium text-slate-600">
+                                Unsaved
+                              </p>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -650,19 +739,44 @@ export function VerifierTerminal({
                     onChange={(event) => {
                       const value = event.target.value;
 
-                      setRejectionNotes(
-                        (current) => ({
-                          ...current,
-                          [order.id]: value,
-                        }),
-                      );
+                      setRejectionNotes((current) => ({
+                        ...current,
+                        [order.id]: value,
+                      }));
+
+                      setRejectionNoteErrors((current) => ({
+                        ...current,
+                        [order.id]: value.trim()
+                          ? undefined
+                          : "A rejection reason is required.",
+                      }));
 
                       setDecisionError(null);
                     }}
+                    onBlur={(event) => {
+                      setRejectionNoteErrors((current) => ({
+                        ...current,
+                        [order.id]: event.target.value.trim()
+                          ? undefined
+                          : "A rejection reason is required.",
+                      }));
+                    }}
+                    aria-invalid={Boolean(
+                      rejectionNoteErrors[order.id],
+                    )}
                     rows={3}
                     placeholder="Describe the shortage, defect, or reason for returning this batch to cutting."
                     className="mt-3 w-full rounded-lg border border-red-300 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-red-700 focus:outline-none focus:ring-4 focus:ring-red-200"
                   />
+
+                  {rejectionNoteErrors[order.id] ? (
+                    <p
+                      role="alert"
+                      className="mt-2 text-sm font-semibold text-red-900"
+                    >
+                      {rejectionNoteErrors[order.id]}
+                    </p>
+                  ) : null}
 
                   <button
                     type="button"

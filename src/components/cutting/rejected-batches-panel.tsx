@@ -344,23 +344,41 @@ export function RejectedBatchesPanel({
                             draft.additionalFabricYards
                           }
                           onChange={(event) => {
+                            const value = event.target.value;
+
                             updateDraft(order.id, {
-                              additionalFabricYards:
-                                event.target.value,
+                              additionalFabricYards: value,
                             });
 
                             updateErrors(order.id, {
                               additionalFabricYards:
-                                undefined,
+                                parsePositiveDecimal(value.trim()) === null
+                                  ? "Enter a positive fabric quantity in yards."
+                                  : undefined,
                               form: undefined,
                             });
                           }}
+                          onBlur={(event) => {
+                            const value = event.target.value;
+
+                            updateErrors(order.id, {
+                              additionalFabricYards:
+                                parsePositiveDecimal(value.trim()) === null
+                                  ? "Enter a positive fabric quantity in yards."
+                                  : undefined,
+                            });
+                          }}
+                          aria-invalid={Boolean(
+                            orderErrors.additionalFabricYards,
+                          )}
                           placeholder="Enter additional fabric used"
                           className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
                         />
 
                         {orderErrors.additionalFabricYards ? (
-                          <p className="mt-2 text-sm font-medium text-red-800">
+                          <p
+                            role="alert"
+                            className="mt-2 text-sm font-medium text-red-800">
                             {
                               orderErrors.additionalFabricYards
                             }
@@ -381,22 +399,34 @@ export function RejectedBatchesPanel({
                           rows={3}
                           value={draft.reason}
                           onChange={(event) => {
+                            const value = event.target.value;
+
                             updateDraft(order.id, {
-                              reason:
-                                event.target.value,
+                              reason: value,
                             });
 
                             updateErrors(order.id, {
-                              reason: undefined,
+                              reason: value.trim()
+                                ? undefined
+                                : "A re-cut reason is required.",
                               form: undefined,
                             });
                           }}
+                          onBlur={(event) => {
+                            updateErrors(order.id, {
+                              reason: event.target.value.trim()
+                                ? undefined
+                                : "A re-cut reason is required.",
+                            });
+                          }}
+                          aria-invalid={Boolean(orderErrors.reason)}
                           placeholder="Describe the corrective cutting work performed"
                           className="w-full rounded-lg border border-slate-400 bg-white px-3 py-2.5 text-slate-950 placeholder:text-slate-500 focus:border-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
                         />
 
                         {orderErrors.reason ? (
-                          <p className="mt-2 text-sm font-medium text-red-800">
+                          <p
+                            role="alert"className="mt-2 text-sm font-medium text-red-800">
                             {orderErrors.reason}
                           </p>
                         ) : null}
